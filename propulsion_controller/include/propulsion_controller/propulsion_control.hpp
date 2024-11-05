@@ -1,8 +1,11 @@
-//Aerial Manipulation Project
-//24.11.05 Just Drone PID flight controller without ros2 function
+// Aerial Manipulation Project
+// 24.11.05 Just Drone PID flight controller without ros2 function
 
 #ifndef PROPULSION_CONTROL
 #define PROPULSION_CONTROL
+
+#define DEG2RAD M_PI / 180.0
+#define RAD2DEG 180.0 / M_PI;
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -23,11 +26,10 @@ namespace platform_control
     public:
         explicit PropulsionControl();
 
-        //PID flight controller -> Desired Wrench 생성 (추후 다른 제어기 사용)
+        // PID flight controller -> Desired Wrench 생성 (추후 다른 제어기 사용)
         void flight_control(vector<double> cur_position, vector<double> cur_attitude);
 
-
-        //PID gain (파라미터화 예정)
+        // PID gain (파라미터화 예정)
         double roll_kp_, roll_ki_, roll_kd;
         double pitch_kp_, pitch_ki_, pitch_kd_;
         double yaw_kp_, yaw_ki_, yaw_kd_;
@@ -36,20 +38,25 @@ namespace platform_control
         double Z_kp_, Z_ki_, Z_kd_;
 
     private:
-        //Desired Wrench로부터 Desired thrust 도출
+        // Desired Wrench로부터 Desired thrust 도출
         void control_allocation();
 
-        Eigen::VectorXd wrench_;
-        Eigen::MatrixXd allocation_matrix_;
-        Eigen::VectorXd thrust_;
+        Eigen::Matrix<double, 6, 1> wrench_;
+        Eigen::Matrix<double, 6, 8> allocation_matrix_;
+        Eigen::Matrix<double, 8, 1> thrust_;
+        Eigen::Matrix<double, 8, 6> pinv_allocation_matrix_;
 
-        //PID 제어를 위한 변수
+        // PID 제어를 위한 변수
         double error_roll_, error_pitch_, error_yaw_;
         double error_X_, error_Y_, error_Z_;
         double error_roll_integ_, error_pitch_integ_, error_yaw_integ_;
         double error_X_integ_, error_Y_integ_, error_Z_integ_;
-        
 
+        // Aerial Platform parameter
+        double r_ = 2.0;
+        double alpha_ = 30 * DEG2RAD;
+        double zeta_ = 0.01; // BLDC Thrust force-Torque ratio
+        
     };
 } // namespace platform_control
 

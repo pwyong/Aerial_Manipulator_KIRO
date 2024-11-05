@@ -4,8 +4,18 @@ namespace platform_control
 {
     PropulsionControl::PropulsionControl()
     {
-        wrench_.resize(6,1);
-        thrust_.resize(8,1);
-        allocation_matrix_.resize(6,8);
+
+        //allocation_matrix_ << 0,0,0,0,0,0
+
+        pinv_allocation_matrix_=allocation_matrix_.completeOrthogonalDecomposition().pseudoInverse();
+    }
+
+    void PropulsionControl::control_allocation()
+    {
+        
+    }
+
+    void PropulsionControl::flight_control(vector<double> cur_position, vector<double> cur_attitude)
+    {
     }
 }
