@@ -18,6 +18,16 @@ include_directories(include)
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 
+add_executable(propulsion_control_node src/propulsion_control_node.cpp src/propulsion_control.cpp)
+ament_target_dependencies(propulsion_control_node
+  rclcpp 
+  geometry_msgs
+)
+install(TARGETS
+  propulsion_control_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
