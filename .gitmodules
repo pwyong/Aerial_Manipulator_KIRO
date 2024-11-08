@@ -1,0 +1,3 @@
+[submodule "ros_gz_project_template"]
+	path = ros_gz_project_template
+	url = https://github.com/gazebosim/ros_gz_project_template.git
