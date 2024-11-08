@@ -84,4 +84,10 @@ namespace platform_control
         
         return Rotz;
     }
+
+    Eigen::Matrix<double, 8, 1> PropulsionControl::Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust){
+        Eigen::Matrix<double, 8, 1> pwm;
+        pwm=thrust;
+        return pwm;
+    }
 }

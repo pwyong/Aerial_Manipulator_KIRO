@@ -28,7 +28,8 @@ namespace platform_control
 
         // PID flight controller -> Desired Wrench 생성 (추후 다른 제어기 사용)
         void flight_pid_control(Eigen::Vector3d cur_position, Eigen::Vector3d cur_attitude);
-        
+
+        Eigen::Matrix<double, 8, 1> Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust);
 
         // PID gain (파라미터화 예정)
         double roll_kp_, roll_ki_, roll_kd_;
@@ -45,12 +46,10 @@ namespace platform_control
         Eigen::Matrix3d y_axis_rotation_matrix(double radian);
         Eigen::Matrix3d z_axis_rotation_matrix(double radian);
 
-
         Eigen::Matrix<double, 6, 1> wrench_; // [Force^T Torque^T]^T
         Eigen::Matrix<double, 6, 8> allocation_matrix_;
         Eigen::Matrix<double, 8, 1> thrust_;
         Eigen::Matrix<double, 8, 6> pinv_allocation_matrix_;
-        
 
         // PID 제어를 위한 변수
         Eigen::Vector3d desired_position_;
@@ -61,29 +60,25 @@ namespace platform_control
         Eigen::Vector3d error_attitude_integ_;
         rclcpp::Time previous_time_;
 
-
         // Aerial Platform parameter
         double r_ = 2.0;
         double alpha_ = 30 * DEG2RAD;
         double sa_ = sin(alpha_);
         double ca_ = cos(alpha_);
         double zeta_ = 0.01; // BLDC Thrust force-Torque ratio
-        double g = 9.80665; // gravitational acceleration (m/s^2)
-        double mass = 77.0; //(kg)
+        double g = 9.80665;  // gravitational acceleration (m/s^2)
+        double mass = 77.0;  //(kg)
         Eigen::Vector3d gravity_force_;
 
-        //Sensor data
+        // Sensor data
         Eigen::Vector3d position_;
         Eigen::Vector3d linear_velocity_;
         Eigen::Vector3d acceleration_;
         Eigen::Vector3d attitude_;
         Eigen::Vector3d angular_velocity_;
-        
-        
 
         // ros2
         rclcpp::Node::SharedPtr node_;
-        
     };
 } // namespace platform_control
 
