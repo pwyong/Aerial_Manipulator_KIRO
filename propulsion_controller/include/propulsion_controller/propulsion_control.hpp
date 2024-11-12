@@ -1,5 +1,6 @@
 // Aerial Manipulation Project
 // 24.11.05 Just Drone PID flight controller without ros2 function
+// 24.11.11 Using SAM mechanical schemetic data -> No self-flight
 
 #ifndef PROPULSION_CONTROL
 #define PROPULSION_CONTROL
@@ -8,6 +9,7 @@
 #define RAD2DEG 180.0 / M_PI;
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Dense"
@@ -16,8 +18,11 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <iostream>
+#include <sstream>
 
 using std::vector;
+using namespace std::chrono_literals;
 
 namespace platform_control
 {
@@ -41,12 +46,13 @@ namespace platform_control
 
     private:
         // Desired Wrench로부터 Desired thrust 도출
+        void get_allocation_matrix();
         void control_allocation();
         Eigen::Matrix3d x_axis_rotation_matrix(double radian);
         Eigen::Matrix3d y_axis_rotation_matrix(double radian);
         Eigen::Matrix3d z_axis_rotation_matrix(double radian);
 
-        Eigen::Matrix<double, 6, 1> wrench_; // [Force^T Torque^T]^T
+        Eigen::Matrix<double, 6, 1> wrench_; // [Force Torque]
         Eigen::Matrix<double, 6, 8> allocation_matrix_;
         Eigen::Matrix<double, 8, 1> thrust_;
         Eigen::Matrix<double, 8, 6> pinv_allocation_matrix_;
@@ -61,11 +67,9 @@ namespace platform_control
         rclcpp::Time previous_time_;
 
         // Aerial Platform parameter
-        double r_ = 2.0;
-        double alpha_ = 30 * DEG2RAD;
-        double sa_ = sin(alpha_);
-        double ca_ = cos(alpha_);
-        double zeta_ = 0.01; // BLDC Thrust force-Torque ratio
+        double r_ = 0.75;
+        Eigen::Matrix<double, 8, 1> alpha_;
+        double zeta_ = 0.02; // BLDC Thrust force-Torque ratio
         double g = 9.80665;  // gravitational acceleration (m/s^2)
         double mass = 77.0;  //(kg)
         Eigen::Vector3d gravity_force_;
@@ -79,6 +83,7 @@ namespace platform_control
 
         // ros2
         rclcpp::Node::SharedPtr node_;
+        rclcpp::TimerBase::SharedPtr timer_;
     };
 } // namespace platform_control
 

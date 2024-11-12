@@ -4,22 +4,47 @@ namespace platform_control
 {
     PropulsionControl::PropulsionControl(rclcpp::Node::SharedPtr node) : node_(node)
     {
-        gravity_force_ << 0, 0, mass * g;
 
-        allocation_matrix_ << 0, sa_ / sqrt(2), -sa_, sa_ / sqrt(2), 0, -sa_ / sqrt(2), sa_, -sa_ / sqrt(2),
-            sa_, -sa_ / sqrt(2), 0, sa_ / sqrt(2), -sa_, sa_ / sqrt(2), 0, -sa_ / sqrt(2),
-            -ca_, -ca_, -ca_, -ca_, -ca_, -ca_, -ca_, -ca_,
-            0, -ca_ * r_ / sqrt(2), -ca_ * r_, -ca_ * r_ / sqrt(2), 0, ca_ * r_ / sqrt(2), ca_ * r_, ca_ * r_ / sqrt(2),
-            ca_ * r_, ca_ * r_ / sqrt(2), 0, -ca_ * r_ / sqrt(2), -ca_ * r_, -ca_ * r_ / sqrt(2), 0, ca_ * r_ / sqrt(2),
-            -zeta_ * ca_ + sa_ * r_, zeta_ * ca_ - sa_ * r_, -zeta_ * ca_ + sa_ * r_, zeta_ * ca_ - sa_ * r_, -zeta_ * ca_ + sa_ * r_, zeta_ * ca_ - sa_ * r_, -zeta_ * ca_ + sa_ * r_, zeta_ * ca_ - sa_ * r_;
+        alpha_ << 53.1, -54.2, -126.9, 125.9, 53.1, -54.1, -126.9, 125.9;
+        alpha_=alpha_*DEG2RAD; 
 
+        get_allocation_matrix();
+
+        Eigen::IOFormat CleanFmt(2, Eigen::DontAlignCols, ", ", "\n");
+        std::ostringstream oss;
+        oss << allocation_matrix_.format(CleanFmt);
+
+        // 문자열 스트림 내용을 RCLCPP_INFO에 출력
+        RCLCPP_INFO(node_->get_logger(), "\n%s", oss.str().c_str());
+
+        
         pinv_allocation_matrix_ = allocation_matrix_.completeOrthogonalDecomposition().pseudoInverse();
 
         previous_time_ = node_->get_clock()->now();
+        timer_=node_->create_wall_timer(10ms, std::bind(&PropulsionControl::control_allocation, this));
+
+    }
+
+    void PropulsionControl::get_allocation_matrix(){
+        for(int i=0; i<8; i++){
+            Eigen::Vector3d motor_pos;
+            Eigen::Vector3d thrust_dir;
+            double force_torque_ratio = pow(-1,1)*zeta_;
+            
+            motor_pos << r_, 0, 0;
+            thrust_dir << 0, 0, 1;
+
+            motor_pos= z_axis_rotation_matrix((i+1)/4.0*M_PI)*motor_pos;
+            thrust_dir=z_axis_rotation_matrix((i+1)/4.0*M_PI)*x_axis_rotation_matrix(alpha_(i))*thrust_dir;
+
+            allocation_matrix_.block<3,1>(0,i) = thrust_dir;
+            allocation_matrix_.block<3,1>(3,i) = motor_pos.cross(thrust_dir)+force_torque_ratio*thrust_dir;
+        }
     }
 
     void PropulsionControl::control_allocation()
-    {
+    {   
+
         thrust_ = pinv_allocation_matrix_ * wrench_;
     }
 

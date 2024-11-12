@@ -8,5 +8,5 @@ def generate_launch_description():
             namespace='aerial_platform',
             executable='propulsion_control_node',
             name='propulsion_control_node'
-        ),
+        )
     ])
