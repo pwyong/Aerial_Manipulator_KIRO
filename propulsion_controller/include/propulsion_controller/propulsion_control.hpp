@@ -27,7 +27,7 @@ using std::vector;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
-namespace platform_control
+namespace propulsion_controller
 {
     class PropulsionControl
     {
@@ -92,7 +92,7 @@ namespace platform_control
         rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_torque_subscription_; // can be intergrated to float32 multiarray
 
         // topic callback
-        void timer_callback(); // topic publish timer
+        void thrust_publisher_callback();
         void desired_force_callback(const geometry_msgs::msg::Vector3 &msg);
         void desired_torque_callback(const geometry_msgs::msg::Vector3 &msg);
 

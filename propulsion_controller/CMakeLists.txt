@@ -22,6 +22,7 @@ add_executable(propulsion_control_node src/propulsion_control_node.cpp src/propu
 ament_target_dependencies(propulsion_control_node
   rclcpp 
   geometry_msgs
+  std_msgs
 )
 install(TARGETS
   propulsion_control_node

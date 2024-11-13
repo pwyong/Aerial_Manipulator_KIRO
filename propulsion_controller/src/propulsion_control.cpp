@@ -1,6 +1,6 @@
 #include "propulsion_controller/propulsion_control.hpp"
 
-namespace platform_control
+namespace propulsion_controller
 {
     PropulsionControl::PropulsionControl(rclcpp::Node::SharedPtr node) : node_(node)
     {
@@ -18,7 +18,7 @@ namespace platform_control
         thrust_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("thrust", 10);
         desired_force_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_force", 10, std::bind(&PropulsionControl::desired_force_callback, this, _1));
         desired_torque_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_torque", 10, std::bind(&PropulsionControl::desired_torque_callback, this, _1));
-        timer_ = node_->create_wall_timer(10ms, std::bind(&PropulsionControl::timer_callback, this));
+        timer_ = node_->create_wall_timer(5ms, std::bind(&PropulsionControl::thrust_publisher_callback, this));
     }
 
     void PropulsionControl::get_allocation_matrix()
@@ -121,7 +121,7 @@ namespace platform_control
         return pwm;
     }
 
-    void PropulsionControl::timer_callback()
+    void PropulsionControl::thrust_publisher_callback()
     {
         thrust_publisher_->publish(thrust_msg);
     }
