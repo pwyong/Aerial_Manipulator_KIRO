@@ -10,6 +10,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
+#include "geometry_msgs/msg/vector3.hpp"
 
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Dense"
@@ -23,6 +25,7 @@
 
 using std::vector;
 using namespace std::chrono_literals;
+using std::placeholders::_1;
 
 namespace platform_control
 {
@@ -84,6 +87,17 @@ namespace platform_control
         // ros2
         rclcpp::Node::SharedPtr node_;
         rclcpp::TimerBase::SharedPtr timer_;
+        rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr thrust_publisher_; // thrust data or pwm data
+        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_force_subscription_;
+        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_torque_subscription_; // can be intergrated to float32 multiarray
+
+        // topic callback
+        void timer_callback(); // topic publish timer
+        void desired_force_callback(const geometry_msgs::msg::Vector3 &msg);
+        void desired_torque_callback(const geometry_msgs::msg::Vector3 &msg);
+
+        // message
+        std_msgs::msg::Float32MultiArray thrust_msg;
     };
 } // namespace platform_control
 

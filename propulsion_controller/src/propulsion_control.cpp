@@ -6,46 +6,47 @@ namespace platform_control
     {
 
         alpha_ << 53.1, -54.2, -126.9, 125.9, 53.1, -54.1, -126.9, 125.9;
-        alpha_=alpha_*DEG2RAD; 
+        alpha_ = alpha_ * DEG2RAD;
 
         get_allocation_matrix();
-
-        Eigen::IOFormat CleanFmt(2, Eigen::DontAlignCols, ", ", "\n");
-        std::ostringstream oss;
-        oss << allocation_matrix_.format(CleanFmt);
-
-        // 문자열 스트림 내용을 RCLCPP_INFO에 출력
-        RCLCPP_INFO(node_->get_logger(), "\n%s", oss.str().c_str());
-
-        
         pinv_allocation_matrix_ = allocation_matrix_.completeOrthogonalDecomposition().pseudoInverse();
 
         previous_time_ = node_->get_clock()->now();
-        timer_=node_->create_wall_timer(10ms, std::bind(&PropulsionControl::control_allocation, this));
 
+        thrust_msg.data.resize(8);
+
+        thrust_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("thrust", 10);
+        desired_force_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_force", 10, std::bind(&PropulsionControl::desired_force_callback, this, _1));
+        desired_torque_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_torque", 10, std::bind(&PropulsionControl::desired_torque_callback, this, _1));
+        timer_ = node_->create_wall_timer(10ms, std::bind(&PropulsionControl::timer_callback, this));
     }
 
-    void PropulsionControl::get_allocation_matrix(){
-        for(int i=0; i<8; i++){
+    void PropulsionControl::get_allocation_matrix()
+    {
+        for (int i = 0; i < 8; i++)
+        {
             Eigen::Vector3d motor_pos;
             Eigen::Vector3d thrust_dir;
-            double force_torque_ratio = pow(-1,1)*zeta_;
-            
+            double force_torque_ratio = pow(-1, 1) * zeta_;
+
             motor_pos << r_, 0, 0;
             thrust_dir << 0, 0, 1;
 
-            motor_pos= z_axis_rotation_matrix((i+1)/4.0*M_PI)*motor_pos;
-            thrust_dir=z_axis_rotation_matrix((i+1)/4.0*M_PI)*x_axis_rotation_matrix(alpha_(i))*thrust_dir;
+            motor_pos = z_axis_rotation_matrix((i + 1) / 4.0 * M_PI) * motor_pos;
+            thrust_dir = z_axis_rotation_matrix((i + 1) / 4.0 * M_PI) * x_axis_rotation_matrix(alpha_(i)) * thrust_dir;
 
-            allocation_matrix_.block<3,1>(0,i) = thrust_dir;
-            allocation_matrix_.block<3,1>(3,i) = motor_pos.cross(thrust_dir)+force_torque_ratio*thrust_dir;
+            allocation_matrix_.block<3, 1>(0, i) = thrust_dir;
+            allocation_matrix_.block<3, 1>(3, i) = motor_pos.cross(thrust_dir) + force_torque_ratio * thrust_dir;
         }
     }
 
     void PropulsionControl::control_allocation()
-    {   
-
+    {
         thrust_ = pinv_allocation_matrix_ * wrench_;
+        for (int i = 0; i < 8; i++)
+        {
+            thrust_msg.data[i] = thrust_(0);
+        }
     }
 
     void PropulsionControl::flight_pid_control(Eigen::Vector3d cur_position, Eigen::Vector3d cur_attitude)
@@ -82,37 +83,60 @@ namespace platform_control
         previous_time_ = current_time;
     }
 
-    Eigen::Matrix3d PropulsionControl::x_axis_rotation_matrix(double radian){
+    Eigen::Matrix3d PropulsionControl::x_axis_rotation_matrix(double radian)
+    {
         Eigen::Matrix3d Rotx;
 
-        Rotx << 1,           0,            0,
-                0, cos(radian), -sin(radian),
-                0, sin(radian),  cos(radian);
-        
+        Rotx << 1, 0, 0,
+            0, cos(radian), -sin(radian),
+            0, sin(radian), cos(radian);
+
         return Rotx;
     }
-    Eigen::Matrix3d PropulsionControl::y_axis_rotation_matrix(double radian){
+    Eigen::Matrix3d PropulsionControl::y_axis_rotation_matrix(double radian)
+    {
         Eigen::Matrix3d Roty;
 
-        Roty << cos(radian),  0, sin(radian),
-                          0,  1,           0,
-                -sin(radian), 0, cos(radian);
-        
+        Roty << cos(radian), 0, sin(radian),
+            0, 1, 0,
+            -sin(radian), 0, cos(radian);
+
         return Roty;
     }
-    Eigen::Matrix3d PropulsionControl::z_axis_rotation_matrix(double radian){
+    Eigen::Matrix3d PropulsionControl::z_axis_rotation_matrix(double radian)
+    {
         Eigen::Matrix3d Rotz;
 
         Rotz << cos(radian), -sin(radian), 0,
-                sin(radian),  cos(radian), 0,
-                          0,            0, 1;
-        
+            sin(radian), cos(radian), 0,
+            0, 0, 1;
+
         return Rotz;
     }
 
-    Eigen::Matrix<double, 8, 1> PropulsionControl::Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust){
+    Eigen::Matrix<double, 8, 1> PropulsionControl::Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust)
+    {
         Eigen::Matrix<double, 8, 1> pwm;
-        pwm=thrust;
+        pwm = thrust;
         return pwm;
+    }
+
+    void PropulsionControl::timer_callback()
+    {
+        thrust_publisher_->publish(thrust_msg);
+    }
+
+    void PropulsionControl::desired_force_callback(const geometry_msgs::msg::Vector3 &msg)
+    {
+        wrench_(0) = msg.x; // Fx
+        wrench_(1) = msg.y; // Fy
+        wrench_(2) = msg.z; // Fz
+    }
+
+    void PropulsionControl::desired_torque_callback(const geometry_msgs::msg::Vector3 &msg)
+    {
+        wrench_(3) = msg.x; // Tx
+        wrench_(4) = msg.y; // Ty
+        wrench_(5) = msg.z; // Tz
     }
 }
