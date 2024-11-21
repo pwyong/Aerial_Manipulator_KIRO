@@ -34,23 +34,21 @@ namespace propulsion_controller
     public:
         explicit PropulsionControl(rclcpp::Node::SharedPtr node);
 
-        // PID flight controller -> Desired Wrench 생성 (추후 다른 제어기 사용)
-        void flight_pid_control(Eigen::Vector3d cur_position, Eigen::Vector3d cur_attitude);
-
+    private:
+        // Thrust와 PWM 신호 사이의 관계식
         Eigen::Matrix<double, 8, 1> Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust);
 
-        // PID gain (파라미터화 예정)
-        double roll_kp_, roll_ki_, roll_kd_;
-        double pitch_kp_, pitch_ki_, pitch_kd_;
-        double yaw_kp_, yaw_ki_, yaw_kd_;
-        double X_kp_, X_ki_, X_kd_;
-        double Y_kp_, Y_ki_, Y_kd_;
-        double Z_kp_, Z_ki_, Z_kd_;
-
-    private:
-        // Desired Wrench로부터 Desired thrust 도출
+        // 플랫폼의 추진 시스템의 배치에 대한 Control Allocation 행렬 도출
         void get_allocation_matrix();
+
+        // Get Nullspace Vector (모든 추력에 대한 음수 값 양수 보정)
+        Eigen::VectorXd compute_nullspace_vector();
+        Eigen::Matrix<double, 8, 1> nullspace_vector_;
+
+        // Desired Wrench로부터 Desired thrust 계산
+        double thrust_low_limit = 0.0;
         void control_allocation();
+
         Eigen::Matrix3d x_axis_rotation_matrix(double radian);
         Eigen::Matrix3d y_axis_rotation_matrix(double radian);
         Eigen::Matrix3d z_axis_rotation_matrix(double radian);
@@ -60,22 +58,10 @@ namespace propulsion_controller
         Eigen::Matrix<double, 8, 1> thrust_;
         Eigen::Matrix<double, 8, 6> pinv_allocation_matrix_;
 
-        // PID 제어를 위한 변수
-        Eigen::Vector3d desired_position_;
-        Eigen::Vector3d desired_attitude_;
-        Eigen::Vector3d previous_position_error_;
-        Eigen::Vector3d previous_attitude_error_;
-        Eigen::Vector3d error_position_integ_;
-        Eigen::Vector3d error_attitude_integ_;
-        rclcpp::Time previous_time_;
-
         // Aerial Platform parameter
         double r_ = 0.75;
         Eigen::Matrix<double, 8, 1> alpha_;
-        double zeta_ = 0.02; // BLDC Thrust force-Torque ratio
-        double g = 9.80665;  // gravitational acceleration (m/s^2)
-        double mass = 77.0;  //(kg)
-        Eigen::Vector3d gravity_force_;
+        double zeta_ = 0.02; // BLDC Thrust Force-Torque ratio
 
         // Sensor data
         Eigen::Vector3d position_;
@@ -88,16 +74,16 @@ namespace propulsion_controller
         rclcpp::Node::SharedPtr node_;
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr thrust_publisher_; // thrust data or pwm data
-        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_force_subscription_;
-        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_torque_subscription_; // can be intergrated to float32 multiarray
+        rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr wrench_publisher_; // test
+        rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr desired_wrench_subscription_;
 
         // topic callback
         void thrust_publisher_callback();
-        void desired_force_callback(const geometry_msgs::msg::Vector3 &msg);
-        void desired_torque_callback(const geometry_msgs::msg::Vector3 &msg);
+        void desired_wrench_callback(const std_msgs::msg::Float32MultiArray &msg);
 
         // message
         std_msgs::msg::Float32MultiArray thrust_msg;
+        std_msgs::msg::Float32MultiArray wrench_msg; //test
     };
 } // namespace platform_control
 

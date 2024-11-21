@@ -11,13 +11,14 @@ namespace propulsion_controller
         get_allocation_matrix();
         pinv_allocation_matrix_ = allocation_matrix_.completeOrthogonalDecomposition().pseudoInverse();
 
-        previous_time_ = node_->get_clock()->now();
+        nullspace_vector_ = compute_nullspace_vector();
 
         thrust_msg.data.resize(8);
+        wrench_msg.data.resize(6);
 
         thrust_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("thrust", 10);
-        desired_force_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_force", 10, std::bind(&PropulsionControl::desired_force_callback, this, _1));
-        desired_torque_subscription_ = node_->create_subscription<geometry_msgs::msg::Vector3>("desired_torque", 10, std::bind(&PropulsionControl::desired_torque_callback, this, _1));
+        wrench_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("wrench", 10);
+        desired_wrench_subscription_ = node_->create_subscription<std_msgs::msg::Float32MultiArray>("desired_wrench", 10, std::bind(&PropulsionControl::desired_wrench_callback, this, _1));
         timer_ = node_->create_wall_timer(5ms, std::bind(&PropulsionControl::thrust_publisher_callback, this));
     }
 
@@ -40,47 +41,47 @@ namespace propulsion_controller
         }
     }
 
-    void PropulsionControl::control_allocation()
+    Eigen::VectorXd PropulsionControl::compute_nullspace_vector()
     {
-        thrust_ = pinv_allocation_matrix_ * wrench_;
-        for (int i = 0; i < 8; i++)
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(allocation_matrix_, Eigen::ComputeFullV);
+
+        Eigen::MatrixXd V = svd.matrixV();
+        Eigen::VectorXd singularValues = svd.singularValues();
+
+        double tolerance = 1e-9;
+        int rank = (singularValues.array() > tolerance).count();
+
+        Eigen::MatrixXd nullSpace = V.block(0, rank, V.rows(), V.cols() - rank);
+
+        // null space vector의 선정 방법은 추후 확인 필요
+        for (int i = 0; i < nullSpace.cols(); ++i) 
         {
-            thrust_msg.data[i] = thrust_(0);
+            Eigen::VectorXd vec = nullSpace.col(i);
+
+            if ((vec.array() > 0).all())
+            {
+                return vec.normalized();
+            }
         }
+
+        throw std::runtime_error("No vector with all positive entries found in null space.");
     }
 
-    void PropulsionControl::flight_pid_control(Eigen::Vector3d cur_position, Eigen::Vector3d cur_attitude)
+    void PropulsionControl::control_allocation()
     {
-        rclcpp::Time current_time = node_->get_clock()->now();
-        double delta_time = (current_time - previous_time_).seconds();
+        Eigen::VectorXd thrust_star = pinv_allocation_matrix_ * wrench_;
+        Eigen::VectorXd thrust_min = Eigen::VectorXd::Zero(8); // low thrust limit = 0N (음수 추력 X)
+        Eigen::VectorXd delta_thrust = thrust_min - thrust_star;
+        Eigen::VectorXd tmp = delta_thrust.array() / nullspace_vector_.array();
 
-        Eigen::Vector3d error_position = desired_position_ - cur_position;
-        Eigen::Vector3d error_attitude = desired_attitude_ - cur_attitude;
+        double lambda = tmp.maxCoeff();
+        
+        thrust_ = pinv_allocation_matrix_*wrench_+ lambda * nullspace_vector_; // SAM 방식
 
-        previous_position_error_ = error_position;
-        previous_attitude_error_ = error_attitude;
-
-        error_position_integ_ += error_position * delta_time;
-        error_attitude_integ_ += error_attitude * delta_time;
-
-        double F_Xd = X_kp_ * error_position(0) + X_ki_ * error_position_integ_(0) - X_kd_ * linear_velocity_(0);
-        double F_Yd = Y_kp_ * error_position(1) + Y_ki_ * error_position_integ_(1) - Y_kd_ * linear_velocity_(1);
-        double F_Zd = Z_kp_ * error_position(2) + Z_ki_ * error_position_integ_(2) - Z_kd_ * linear_velocity_(2);
-
-        double tau_rd = roll_kp_ * error_attitude(0) + roll_ki_ * error_attitude_integ_(0) - roll_kd_ * angular_velocity_(0);
-        double tau_pd = pitch_kp_ * error_attitude(1) + pitch_ki_ * error_attitude_integ_(1) - pitch_kd_ * angular_velocity_(1);
-        double tau_yd = yaw_kp_ * error_attitude(2) + yaw_ki_ * error_attitude_integ_(2) - yaw_kd_ * angular_velocity_(2);
-
-        Eigen::Vector3d desired_force_wrt_world;
-        desired_force_wrt_world << F_Xd, F_Yd, F_Zd;
-
-        Eigen::Vector3d desired_force_wrt_body = x_axis_rotation_matrix(-cur_attitude(0)) * y_axis_rotation_matrix(-cur_attitude(1)) * z_axis_rotation_matrix(-cur_attitude(2)) * (desired_force_wrt_world - gravity_force_);
-
-        wrench_ << desired_force_wrt_body(0), desired_force_wrt_body(1), desired_force_wrt_body(2), tau_rd, tau_pd, tau_yd;
-
-        control_allocation();
-
-        previous_time_ = current_time;
+        for (int i = 0; i < 8; i++)
+        {
+            thrust_msg.data[i] = thrust_(i);
+        }
     }
 
     Eigen::Matrix3d PropulsionControl::x_axis_rotation_matrix(double radian)
@@ -123,20 +124,23 @@ namespace propulsion_controller
 
     void PropulsionControl::thrust_publisher_callback()
     {
+        control_allocation();
         thrust_publisher_->publish(thrust_msg);
+
+        Eigen::VectorXd generated_wrench = allocation_matrix_*thrust_;
+        for(int i=0; i<6; i++){
+            wrench_msg.data[i]=generated_wrench(i);
+        }
+        wrench_publisher_->publish(wrench_msg);
     }
 
-    void PropulsionControl::desired_force_callback(const geometry_msgs::msg::Vector3 &msg)
+    void PropulsionControl::desired_wrench_callback(const std_msgs::msg::Float32MultiArray &msg)
     {
-        wrench_(0) = msg.x; // Fx
-        wrench_(1) = msg.y; // Fy
-        wrench_(2) = msg.z; // Fz
-    }
-
-    void PropulsionControl::desired_torque_callback(const geometry_msgs::msg::Vector3 &msg)
-    {
-        wrench_(3) = msg.x; // Tx
-        wrench_(4) = msg.y; // Ty
-        wrench_(5) = msg.z; // Tz
+        wrench_(0) = msg.data[0]; // Fx
+        wrench_(1) = msg.data[1]; // Fy
+        wrench_(2) = msg.data[2]; // Fz
+        wrench_(3) = msg.data[3]; // Tx
+        wrench_(4) = msg.data[4]; // Ty
+        wrench_(5) = msg.data[5]; // Tz
     }
 }
