@@ -54,7 +54,7 @@ namespace propulsion_controller
         Eigen::MatrixXd nullSpace = V.block(0, rank, V.rows(), V.cols() - rank);
 
         // null space vector의 선정 방법은 추후 확인 필요
-        for (int i = 0; i < nullSpace.cols(); ++i) 
+        for (int i = 0; i < nullSpace.cols(); ++i)
         {
             Eigen::VectorXd vec = nullSpace.col(i);
 
@@ -75,8 +75,8 @@ namespace propulsion_controller
         Eigen::VectorXd tmp = delta_thrust.array() / nullspace_vector_.array();
 
         double lambda = tmp.maxCoeff();
-        
-        thrust_ = pinv_allocation_matrix_*wrench_+ lambda * nullspace_vector_; // SAM 방식
+
+        thrust_ = pinv_allocation_matrix_ * wrench_ + lambda * nullspace_vector_; // SAM 방식
 
         for (int i = 0; i < 8; i++)
         {
@@ -127,9 +127,10 @@ namespace propulsion_controller
         control_allocation();
         thrust_publisher_->publish(thrust_msg);
 
-        Eigen::VectorXd generated_wrench = allocation_matrix_*thrust_;
-        for(int i=0; i<6; i++){
-            wrench_msg.data[i]=generated_wrench(i);
+        Eigen::VectorXd generated_wrench = allocation_matrix_ * thrust_;
+        for (int i = 0; i < 6; i++)
+        {
+            wrench_msg.data[i] = generated_wrench(i);
         }
         wrench_publisher_->publish(wrench_msg);
     }
@@ -142,5 +143,18 @@ namespace propulsion_controller
         wrench_(3) = msg.data[3]; // Tx
         wrench_(4) = msg.data[4]; // Ty
         wrench_(5) = msg.data[5]; // Tz
+    }
+
+    void PropulsionControl::kill()
+    {
+        thrust_ = Eigen::VectorXd::Zero(8);
+    }
+
+    void PropulsionControl::Arm()
+    {
+    }
+
+    void PropulsionControl::disArm()
+    {
     }
 }
