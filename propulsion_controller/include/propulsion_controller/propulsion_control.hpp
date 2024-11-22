@@ -37,10 +37,11 @@ namespace propulsion_controller
 
     private:
         // Mode에 대한 작동
-        void kill(); // 멈춤 -> 추력 입력 신호를 0으로 -> hard stop
-        void Arm(); // 본격적인 구동 전 추진 시스템 시동 (PWM 약 1100 신호 입력)
+        bool kill_mode = true;
+        bool Arm_mode = false;
+        void kill();   // 멈춤 -> 추력 입력 신호를 0으로 -> hard stop
+        void Arm();    // 본격적인 구동 전 추진 시스템 시동 (PWM 약 1100 신호 입력)
         void disArm(); // 모든 렌치 입력을 0으로 -> soft stop
-
 
         // Thrust와 PWM 신호 사이의 관계식
         Eigen::Matrix<double, 8, 1> Force_to_PWM(Eigen::Matrix<double, 8, 1> thrust);
@@ -66,7 +67,7 @@ namespace propulsion_controller
         Eigen::Matrix<double, 8, 6> pinv_allocation_matrix_;
 
         // Aerial Platform parameter
-        double r_ = 0.75;
+        double r_ = 0.75 / 2.0;
         Eigen::Matrix<double, 8, 1> alpha_;
         double zeta_ = 0.02; // BLDC Thrust Force-Torque ratio
 
@@ -90,7 +91,7 @@ namespace propulsion_controller
 
         // message
         std_msgs::msg::Float32MultiArray thrust_msg;
-        std_msgs::msg::Float32MultiArray wrench_msg; //test
+        std_msgs::msg::Float32MultiArray wrench_msg; // test
     };
 } // namespace platform_control
 

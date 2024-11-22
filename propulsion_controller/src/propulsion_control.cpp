@@ -124,13 +124,20 @@ namespace propulsion_controller
 
     void PropulsionControl::thrust_publisher_callback()
     {
-        control_allocation();
-        thrust_publisher_->publish(thrust_msg);
-
-        Eigen::VectorXd generated_wrench = allocation_matrix_ * thrust_;
-        for (int i = 0; i < 6; i++)
+        if (kill_mode)
         {
-            wrench_msg.data[i] = generated_wrench(i);
+            kill();
+        }
+        else
+        {
+            control_allocation();
+            thrust_publisher_->publish(thrust_msg);
+
+            Eigen::VectorXd generated_wrench = allocation_matrix_ * thrust_;
+            for (int i = 0; i < 6; i++)
+            {
+                wrench_msg.data[i] = generated_wrench(i);
+            }
         }
         wrench_publisher_->publish(wrench_msg);
     }
