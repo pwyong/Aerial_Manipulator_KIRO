@@ -34,16 +34,61 @@ namespace winch_controller
         explicit WinchControl(rclcpp::Node::SharedPtr node);
 
     private:
+        // Winch Operation --------------------------------------------
+        // roll pitch setting for side plane task
+        void roll_pitch_control(); // 측면 작업을 위한 roll, pitch control
+
+        // robot arm operation compensation
+        void CoM_compensation_control(); // 로봇 팔 구동 시 무게 중심 이동 보상 (Admittance control + inverse Kinematics)
+        void admittance_interface();
+        void inverse_kinematics();
+        //-------------------------------------------------------
+
+        // Parameter
+
+        Eigen::Matrix3d winch_cable_position; //[a1, a2, a3]
+
+        // Control Variable
+        Eigen::Vector3d desired_platform_center_position_; // x_sp_des
+        Eigen::Vector3d desired_cable_length_;             // l
+        Eigen::Vector3d desired_CoM_z_wrt_world;           // r
+        Eigen::Vector3d desired_CoM_xy_wrt_body;           // d
+
+        // Admittance interface
+        rclcpp::Time previous_time_;
+        Eigen::Vector3d M_adm_;                 // Mx, My, Mz
+        Eigen::Vector3d D_adm_;                 // Dx, Dy, Dz
+        Eigen::Matrix<double, 2, 3> adm_state_; // state in X,Y,Z channel
+        Eigen::Vector3d adm_input_;
+
+        // Rotational Matrix
+        Eigen::Matrix3d x_axis_rotation_matrix(double radian);
+        Eigen::Matrix3d y_axis_rotation_matrix(double radian);
+        Eigen::Matrix3d z_axis_rotation_matrix(double radian);
+
+        // Mode
+        bool manipulation_mode = false; // ground station에서 보낼 값 -> setting 되면 service client로 구조 변경
+
         // ros2
         rclcpp::Node::SharedPtr node_;
         rclcpp::TimerBase::SharedPtr timer_;
-        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr attitude_;
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr winch_cmd_publisher_;
+
+        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr attitude_subscription_;
+        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr desired_attitude_subscription_;
+        rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr quasi_joint_torque_subscription_; // whole body controller result
 
         // message
         std_msgs::msg::Float32MultiArray winch_cmd_;
+        geometry_msgs::msg::Vector3 attitude_;
+        geometry_msgs::msg::Vector3 desired_attitude_;
+        geometry_msgs::msg::Vector3 quasi_joint_torque_;
 
+        // callback function
         void winch_cmd_publisher_callback();
+        void attitude_callback(const geometry_msgs::msg::Vector3 &msg);
+        void desired_attitude_callback(const geometry_msgs::msg::Vector3 &msg);
+        void quasi_joint_torque_callback(const geometry_msgs::msg::Vector3 &msg);
     };
 } // namespace winch_controller
 
