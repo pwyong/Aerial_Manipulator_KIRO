@@ -11,6 +11,21 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
+include_directories(include)
+
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME})
+
+add_executable(oscillation_damping_control_node src/oscillation_damping_control_node.cpp src/oscillation_damping_control.cpp)
+ament_target_dependencies(oscillation_damping_control_node
+  rclcpp 
+  geometry_msgs
+  std_msgs
+)
+install(TARGETS
+  oscillation_damping_control_node
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 
 if(BUILD_TESTING)
