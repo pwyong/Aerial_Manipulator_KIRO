@@ -45,8 +45,11 @@ namespace winch_controller
         //-------------------------------------------------------
 
         // Parameter
-
-        Eigen::Matrix3d winch_cable_position; //[a1, a2, a3]
+        Eigen::Matrix3d winch_cable_position;           //[a1, a2, a3]
+        double cable_max_limit = 2.0;                   // m
+        double cable_min_limit = 0.5;                   // m
+        double winch_displacement_radius = 0.831 / 2.0; // m
+        double gamma = 52.49;
 
         // Control Variable
         Eigen::Vector3d desired_platform_center_position_; // x_sp_des
@@ -67,7 +70,10 @@ namespace winch_controller
         Eigen::Matrix3d z_axis_rotation_matrix(double radian);
 
         // Mode
-        bool manipulation_mode = false; // ground station에서 보낼 값 -> setting 되면 service client로 구조 변경
+        bool manipulation_mode = true; // ground station에서 보낼 값 -> setting 되면 service client로 구조 변경
+
+        // robot state
+        bool position_hold = true;
 
         // ros2
         rclcpp::Node::SharedPtr node_;

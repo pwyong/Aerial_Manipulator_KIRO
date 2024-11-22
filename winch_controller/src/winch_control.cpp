@@ -5,6 +5,15 @@ namespace winch_controller
     WinchControl::WinchControl(rclcpp::Node::SharedPtr node) : node_(node)
     {
         adm_state_ = Eigen::MatrixXd::Zero(2, 3);
+        adm_input_ = Eigen::Vector3d::Zero(3);
+
+        desired_cable_length_ = Eigen::Vector3d::Ones(3);
+        M_adm_ << 1, 2, 3; // test
+        D_adm_ << 5, 4, 3; // test
+        for (int i = 0; i < winch_cable_position.cols(); i++)
+        {
+            winch_cable_position.col(i) << winch_displacement_radius / 2.0 * cos((gamma + 120.0 * (i + 1)) * DEG2RAD), winch_displacement_radius / 2.0 * sin((gamma + 120.0 * (i + 1)) * DEG2RAD), 1.0;
+        }
 
         winch_cmd_.data.resize(3);
 
@@ -35,7 +44,7 @@ namespace winch_controller
 
         for (int i = 0; i < 3; i++)
         {
-            Eigen::Vector2d state_dot;
+            Eigen::Vector2d state_dot = Eigen::VectorXd::Zero(2);
             Eigen::Matrix2d A;
             Eigen::Matrix<double, 2, 1> B;
             Eigen::Matrix<double, 1, 2> C;
@@ -43,10 +52,13 @@ namespace winch_controller
                 0, -D_adm_(i) / M_adm_(i);
             B << 0, 1;
             C << 1 / M_adm_(i), 0;
-            state_dot = A * adm_state_.col(i) + B * adm_input_(i);
-            adm_state_.col(i) += state_dot * delta_time;
-            desired_platform_center_position_(i) = 1.0 / M_adm_(i) * adm_state_.col(i)(0);
+            state_dot =  A * adm_state_.col(i) + B * adm_input_(i);
+            //RCLCPP_INFO(node_->get_logger(), "%lf", adm_input_(i));
+            adm_state_.col(i) += delta_time * state_dot;
+            desired_platform_center_position_(i) = C * adm_state_.col(i);
         }
+
+        previous_time_ = node_->get_clock()->now();
     }
 
     void WinchControl::inverse_kinematics()
@@ -55,18 +67,33 @@ namespace winch_controller
         {
             Eigen::Vector3d cable_vector = desired_platform_center_position_ + z_axis_rotation_matrix(attitude_.z) * y_axis_rotation_matrix(attitude_.y) * x_axis_rotation_matrix(attitude_.x) * winch_cable_position.col(i); // eq (5.19)
             desired_cable_length_(i) = cable_vector.norm();
+            if (desired_cable_length_(i) > cable_max_limit)
+                desired_cable_length_(i) = cable_max_limit;
+            if (desired_cable_length_(i) < cable_min_limit)
+                desired_cable_length_(i) = cable_min_limit;
+            winch_cmd_.data[i] = desired_cable_length_(i);
         }
     }
 
     void WinchControl::winch_cmd_publisher_callback()
     {
-        if (manipulation_mode)
+        if (position_hold)
         {
-            CoM_compensation_control();
+            if (manipulation_mode)
+            {
+                CoM_compensation_control();
+            }
+            else
+            {
+                roll_pitch_control();
+            }
         }
         else
         {
-            roll_pitch_control();
+            for (int i = 0; i < 3; i++)
+            {
+                winch_cmd_.data[i] = 1.0;
+            }
         }
 
         winch_cmd_publisher_->publish(winch_cmd_);
