@@ -20,7 +20,7 @@ namespace winch_controller
         winch_cmd_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("winch_cmd", 10);
         timer_ = node_->create_wall_timer(5ms, std::bind(&WinchControl::winch_cmd_publisher_callback, this));
 
-        attitude_subscription_ = node->create_subscription<geometry_msgs::msg::Vector3>("current_attitude", 10, std::bind(&WinchControl::attitude_callback, this, _1));
+        attitude_subscription_ = node->create_subscription<geometry_msgs::msg::Vector3>("attitude", 10, std::bind(&WinchControl::attitude_callback, this, _1));
         desired_attitude_subscription_ = node->create_subscription<geometry_msgs::msg::Vector3>("desired_attitude", 10, std::bind(&WinchControl::desired_attitude_callback, this, _1));
         quasi_joint_torque_subscription_ = node->create_subscription<geometry_msgs::msg::Vector3>("quasi_joint_torque", 10, std::bind(&WinchControl::quasi_joint_torque_callback, this, _1));
 
@@ -41,6 +41,7 @@ namespace winch_controller
     {
         rclcpp::Time current_time = node_->get_clock()->now();
         double delta_time = (current_time - previous_time_).seconds();
+        previous_time_ = current_time;
 
         for (int i = 0; i < 3; i++)
         {
@@ -58,7 +59,7 @@ namespace winch_controller
             desired_platform_center_position_(i) = C * adm_state_.col(i);
         }
 
-        previous_time_ = node_->get_clock()->now();
+        
     }
 
     void WinchControl::inverse_kinematics()

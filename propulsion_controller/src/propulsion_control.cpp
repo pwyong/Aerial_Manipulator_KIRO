@@ -17,7 +17,7 @@ namespace propulsion_controller
         wrench_msg.data.resize(6);
 
         thrust_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("thrust", 10);
-        wrench_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("wrench", 10);
+        //wrench_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("wrench", 10);
         desired_wrench_subscription_ = node_->create_subscription<std_msgs::msg::Float32MultiArray>("desired_wrench", 10, std::bind(&PropulsionControl::desired_wrench_callback, this, _1));
         timer_ = node_->create_wall_timer(5ms, std::bind(&PropulsionControl::thrust_publisher_callback, this));
     }
@@ -139,7 +139,7 @@ namespace propulsion_controller
                 wrench_msg.data[i] = generated_wrench(i);
             }
         }
-        wrench_publisher_->publish(wrench_msg);
+        //wrench_publisher_->publish(wrench_msg);
     }
 
     void PropulsionControl::desired_wrench_callback(const std_msgs::msg::Float32MultiArray &msg)
