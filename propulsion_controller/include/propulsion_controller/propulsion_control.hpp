@@ -12,6 +12,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
+#include "std_msgs/msg/float32.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 
 #include "eigen3/Eigen/Core"
@@ -84,10 +85,12 @@ namespace propulsion_controller
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr thrust_publisher_; // thrust data or pwm data
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr wrench_publisher_; // test
         rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr desired_wrench_subscription_;
+        rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr desired_yaw_torque_subscription_;
 
         // topic callback
         void thrust_publisher_callback();
         void desired_wrench_callback(const std_msgs::msg::Float32MultiArray &msg);
+        void desired_yaw_torque_callback(const std_msgs::msg::Float32 &msg);
 
         // message
         std_msgs::msg::Float32MultiArray thrust_msg;

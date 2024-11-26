@@ -19,6 +19,7 @@ namespace propulsion_controller
         thrust_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("thrust", 10);
         //wrench_publisher_ = node_->create_publisher<std_msgs::msg::Float32MultiArray>("wrench", 10);
         desired_wrench_subscription_ = node_->create_subscription<std_msgs::msg::Float32MultiArray>("desired_wrench", 10, std::bind(&PropulsionControl::desired_wrench_callback, this, _1));
+        desired_yaw_torque_subscription_ = node_->create_subscription<std_msgs::msg::Float32>("desired_yaw_torque", 10, std::bind(&PropulsionControl::desired_yaw_torque_callback, this, _1));
         timer_ = node_->create_wall_timer(5ms, std::bind(&PropulsionControl::thrust_publisher_callback, this));
     }
 
@@ -149,7 +150,10 @@ namespace propulsion_controller
         wrench_(2) = msg.data[2]; // Fz
         wrench_(3) = msg.data[3]; // Tx
         wrench_(4) = msg.data[4]; // Ty
-        wrench_(5) = msg.data[5]; // Tz
+    }
+
+    void PropulsionControl::desired_yaw_torque_callback(const std_msgs::msg::Float32 &msg){
+        wrench_(5) = msg.data; // Tz
     }
 
     void PropulsionControl::kill()

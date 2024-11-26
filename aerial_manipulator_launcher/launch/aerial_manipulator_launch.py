@@ -20,9 +20,15 @@ def generate_launch_description():
             FindPackageShare('oscillation_damping_controller'), '/launch/oscillation_damping_control_launch.py'
         ])
     )
+    yaw_controller_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            FindPackageShare('yaw_controller'), '/launch/yaw_control_launch.py'
+        ])
+    )
 
     return LaunchDescription([
         propulsion_controller_launch,
         winch_controller_launch,
         oscillation_damping_controller_launch,
+        yaw_controller_launch,
     ])
